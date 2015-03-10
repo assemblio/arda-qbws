@@ -13,6 +13,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Collections;
 using System.Xml;
+using MongoDB.Bson;
+using MongoDB.Driver;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace ArdaQBWS
 {
@@ -22,7 +26,7 @@ namespace ArdaQBWS
     [WebService(
          Namespace = "http://developer.intuit.com/",
          Name = "WCWebService",
-         Description = "Sample WebService in ASP.NET to demonstrate " +
+         Description = "Quickbooks WebService in ASP.NET " +
                 "QuickBooks WebConnector")]
     // To allow this Web Service to be called from script, using ASP.NET AJAX, uncomment the following line. 
     // [System.Web.Script.Services.ScriptService]
@@ -42,7 +46,6 @@ namespace ArdaQBWS
             // Generate a random session ticket 
             authReturn[0] = System.Guid.NewGuid().ToString();
 
-            // For simplicity of sample, a hardcoded username/password is used.
             string pwd = "password";
 
             if (strUserName.Trim().Equals("test") && strPassword.Trim().Equals(pwd))
@@ -193,50 +196,50 @@ namespace ArdaQBWS
 
         public ArrayList buildRequest()
         {
+            MongoServer mongo = MongoServer.Create();
+            mongo.Connect();
+            var db = mongo.GetDatabase("arda");
+
             string strRequestXML = "";
-            //step2: create the qbXML request
-            string[,] namesOfPeople = { { "Assemlio SSL", "Vullkan", "Halili", "vullkan@opendatakosovo.org", "Mr" }, 
-                                        { "Open Data Kosovo", "Feride", "Adili", "feride@opendatakosovo.org", "Ms"},
-                                        { "LunaKos", "Egzontina", "Krasniqi", "egzontina@opendatakosovo.org", "Ms"},
-                                        { "Deliotte", "Hamdi", "Aliu", "hamdi@opendatakosovo.org", "Mr"},
-                                        { "ARDA", "Alush", "Gashi", "alush@opendatakosovo.org" , "Mr"},
-                                        { "E-Prokurimi", "Arben", "Maloku", "arbenM@opendatakosovo.org", "Mr"},
-                                        { "E-Nsh Besa", "Vlora", "Thaqi", "vlora@opendatakosovo.org", "Ms"},
-                                        { "E-Nsh Nobeli", "Rita", "Ora", "rita@opendatakosovo.org", "Ms"},
-                                        { "CFLI", "Arben", "Avdiu", "arben@opendatakosovo.org", "Mr"},
-                                        { "Arbeni-Tours", "Latif", "Latifi", "latif@opendatakosovo.org", "Mr"},
-                                        { "Besa-Tours", "Besa", "Hoxha", "besa@opendatakosovo.org", "Ms"},
-                                        { "Fadili-Tours", "Fadil", "Hamza", "fadil@opendatakosovo.org", "Mr"} };
+            using (mongo.RequestStart(db))
+			{
+				var collection = db.GetCollection<BsonDocument>("contacts");
+                foreach (BsonDocument item in collection.FindAll())
+                {
+                    string json = item.ToJson();
+                    var companyName = item.GetValue("companyName");
+                    var firstName = item.GetValue("firstName");
+                    var lastName = item.GetValue("lastName");
+                    var email = item.GetValue("email");
+                    //step2: create the qbXML request
+                    XmlDocument inputXMLDoc = new XmlDocument();
+                    inputXMLDoc.AppendChild(inputXMLDoc.CreateXmlDeclaration("1.0", null, null));
+                    inputXMLDoc.AppendChild(inputXMLDoc.CreateProcessingInstruction("qbxml", "version=\"2.0\""));
+                    XmlElement qbXML = inputXMLDoc.CreateElement("QBXML");
+                    inputXMLDoc.AppendChild(qbXML);
+                    XmlElement qbXMLMsgsRq = inputXMLDoc.CreateElement("QBXMLMsgsRq");
+                    qbXML.AppendChild(qbXMLMsgsRq);
+                    qbXMLMsgsRq.SetAttribute("onError", "stopOnError");
+                    XmlElement custAddRq = inputXMLDoc.CreateElement("CustomerAddRq");
+                    qbXMLMsgsRq.AppendChild(custAddRq);
+                    custAddRq.SetAttribute("requestID", "2");
+                    XmlElement custAdd = inputXMLDoc.CreateElement("CustomerAdd");
+                    custAddRq.AppendChild(custAdd);
+                    custAdd.AppendChild(inputXMLDoc.CreateElement("Name")).InnerText = companyName.ToString();
+                    custAdd.AppendChild(inputXMLDoc.CreateElement("CompanyName")).InnerText = companyName.ToString();
+                    custAdd.AppendChild(inputXMLDoc.CreateElement("FirstName")).InnerText = firstName.ToString();
+                    custAdd.AppendChild(inputXMLDoc.CreateElement("LastName")).InnerText = lastName.ToString();
+                    custAdd.AppendChild(inputXMLDoc.CreateElement("Email")).InnerText = email.ToString();
 
-            for (int i = 0; i < namesOfPeople.GetLength(0); i++)
-            {
-                XmlDocument inputXMLDoc = new XmlDocument();
-                inputXMLDoc.AppendChild(inputXMLDoc.CreateXmlDeclaration("1.0", null, null));
-                inputXMLDoc.AppendChild(inputXMLDoc.CreateProcessingInstruction("qbxml", "version=\"2.0\""));
-                XmlElement qbXML = inputXMLDoc.CreateElement("QBXML");
-                inputXMLDoc.AppendChild(qbXML);
-                XmlElement qbXMLMsgsRq = inputXMLDoc.CreateElement("QBXMLMsgsRq");
-                qbXML.AppendChild(qbXMLMsgsRq);
-                qbXMLMsgsRq.SetAttribute("onError", "stopOnError");
-                XmlElement custAddRq = inputXMLDoc.CreateElement("CustomerAddRq");
-                qbXMLMsgsRq.AppendChild(custAddRq);
-                custAddRq.SetAttribute("requestID", "2");
-                XmlElement custAdd = inputXMLDoc.CreateElement("CustomerAdd");
-                custAddRq.AppendChild(custAdd);
-                custAdd.AppendChild(inputXMLDoc.CreateElement("Name")).InnerText = namesOfPeople[i, 0];
-                custAdd.AppendChild(inputXMLDoc.CreateElement("CompanyName")).InnerText = namesOfPeople[i, 0];
-                custAdd.AppendChild(inputXMLDoc.CreateElement("FirstName")).InnerText = namesOfPeople[i, 1];
-                custAdd.AppendChild(inputXMLDoc.CreateElement("LastName")).InnerText = namesOfPeople[i, 2];
-                custAdd.AppendChild(inputXMLDoc.CreateElement("Email")).InnerText = namesOfPeople[i, 3];
+                    strRequestXML = inputXMLDoc.OuterXml;
+                    req.Add(strRequestXML);
 
-                strRequestXML = inputXMLDoc.OuterXml;
-                req.Add(strRequestXML);
-
-                // Clean up
-                strRequestXML = "";
-                inputXMLDoc = null;
-                qbXMLMsgsRq = null;
-                custAdd = null;
+                    // Clean up
+                    strRequestXML = "";
+                    inputXMLDoc = null;
+                    qbXMLMsgsRq = null;
+                    custAdd = null;
+                }
             }
             return req;
         }
