@@ -1,0 +1,27 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="ArdaQBWS.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="dbhostaddress" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">54.69.168.210</Value>
+    </Setting>
+    <Setting Name="dbhostport" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">27017</Value>
+    </Setting>
+    <Setting Name="dbcatalogname" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">arda</Value>
+    </Setting>
+    <Setting Name="dbhostconnecttimeout" Type="System.Int32" Scope="Application">
+      <Value Profile="(Default)">25000</Value>
+    </Setting>
+    <Setting Name="appusername" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">u_appman</Value>
+    </Setting>
+    <Setting Name="appuserpassword" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">$^&amp;*sdfg%#$%gjygad%^&amp;U</Value>
+    </Setting>
+    <Setting Name="wsauthpassword" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">password</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

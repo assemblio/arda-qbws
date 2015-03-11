@@ -17,6 +17,9 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using ArdaQBWS.Properties;
+using System.Xml.Linq;
+using System.Text;
 
 namespace ArdaQBWS
 {
@@ -24,7 +27,7 @@ namespace ArdaQBWS
     /// Summary description for QBWebService
     /// </summary>
     [WebService(
-         Namespace = "http://developer.intuit.com/",
+         Namespace = "http://developer.assemblio.com/",
          Name = "WCWebService",
          Description = "Quickbooks WebService in ASP.NET " +
                 "QuickBooks WebConnector")]
@@ -46,9 +49,8 @@ namespace ArdaQBWS
             // Generate a random session ticket 
             authReturn[0] = System.Guid.NewGuid().ToString();
 
-            string pwd = "password";
-
-            if (strUserName.Trim().Equals("test") && strPassword.Trim().Equals(pwd))
+          
+            if (strUserName.Trim().Equals("test") && strPassword.Trim().Equals(Settings.Default.wsauthpassword))
             {
                 // An empty string for authReturn[1] means asking QBWebConnector 
                 // to connect to the company file that is currently openned in QB
@@ -62,7 +64,6 @@ namespace ArdaQBWS
             return authReturn;
         }
 
-        [WebMethod(Description = "This web method facilitates web service to send request XML to QuickBooks via QBWebConnector", EnableSession = true)]
         /// <summary>
         /// WebMethod# 4 - sendRequestXML()
         /// Signature: public string sendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName, 
@@ -84,6 +85,7 @@ namespace ArdaQBWS
         /// - “any_string” = Request XML for QBWebConnector to process
         /// - "" = No more request XML 
         /// </summary>
+        [WebMethod(Description = "This web method facilitates web service to send request XML to QuickBooks via QBWebConnector", EnableSession = true)]
         public string sendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName,
             string qbXMLCountry, int qbXMLMajorVers, int qbXMLMinorVers)
         {
@@ -91,17 +93,28 @@ namespace ArdaQBWS
             {
                 Session["counter"] = 0;
             }
-            string evLogTxt = "WebMethod: sendRequestXML() has been called by QBWebconnector" + "\r\n\r\n";
-            evLogTxt = evLogTxt + "Parameters received:\r\n";
-            evLogTxt = evLogTxt + "string ticket = " + ticket + "\r\n";
-            evLogTxt = evLogTxt + "string strHCPResponse = " + strHCPResponse + "\r\n";
-            evLogTxt = evLogTxt + "string strCompanyFileName = " + strCompanyFileName + "\r\n";
-            evLogTxt = evLogTxt + "string qbXMLCountry = " + qbXMLCountry + "\r\n";
-            evLogTxt = evLogTxt + "int qbXMLMajorVers = " + qbXMLMajorVers.ToString() + "\r\n";
-            evLogTxt = evLogTxt + "int qbXMLMinorVers = " + qbXMLMinorVers.ToString() + "\r\n";
-            evLogTxt = evLogTxt + "\r\n";
 
-            ArrayList req = buildRequest();
+            string evLogTxt = string.Format(
+@"WebMethod: sendRequestXML() has been called by QBWebconnector
+
+Parameters received:
+string ticket = {0}
+string strHCPResponse = {1}
+string strCompanyFileName = {2}
+string qbXMLCountry = {3}
+int qbXMLMajorVers = {4}
+int qbXMLMinorVers = {5}
+
+",
+             ticket,
+             strHCPResponse,
+             strCompanyFileName,
+             qbXMLCountry,
+             qbXMLMajorVers.ToString(),
+             qbXMLMinorVers.ToString() 
+             );
+             
+            ArrayList req = BuildBusinessRequestMessage();
             string request = "";
             int total = req.Count;
             count = Convert.ToInt32(Session["counter"]);
@@ -121,12 +134,11 @@ namespace ArdaQBWS
             evLogTxt = evLogTxt + "\r\n";
             evLogTxt = evLogTxt + "Return values: " + "\r\n";
             evLogTxt = evLogTxt + "string request = " + request + "\r\n";
-            logEvent(evLogTxt);
+            LogEvent(evLogTxt);
             return request;
         }
 
 
-        [WebMethod(Description = "This web method facilitates web service to receive response XML from QuickBooks via QBWebConnector", EnableSession = true)]
         /// <summary>
         /// WebMethod# 5 - receiveResponseXML()
         /// Signature: public int receiveResponseXML(string ticket, string response, string hresult, string message)
@@ -143,15 +155,26 @@ namespace ArdaQBWS
         /// 100 = Done. no more request to send
         /// Less than zero  = Custom Error codes
         /// </summary>
+        [WebMethod(Description = "This web method facilitates web service to receive response XML from QuickBooks via QBWebConnector", 
+            EnableSession = true)]
         public int receiveResponseXML(string ticket, string response, string hresult, string message)
         {
-            string evLogTxt = "WebMethod: receiveResponseXML() has been called by QBWebconnector" + "\r\n\r\n";
-            evLogTxt = evLogTxt + "Parameters received:\r\n";
-            evLogTxt = evLogTxt + "string ticket = " + ticket + "\r\n";
-            evLogTxt = evLogTxt + "string response = " + response + "\r\n";
-            evLogTxt = evLogTxt + "string hresult = " + hresult + "\r\n";
-            evLogTxt = evLogTxt + "string message = " + message + "\r\n";
-            evLogTxt = evLogTxt + "\r\n";
+ 
+            var evLogTxt = string.Format(
+@"WebMethod: receiveResponseXML() has been called by QBWebconnector
+
+Parameters received:
+string ticket = {0}
+string response = {1}
+string hresult = {2}
+string message = {3}
+
+",
+             ticket,
+             response,
+             hresult,
+             message 
+            ); 
 
             int retVal = 0;
             if (!hresult.ToString().Equals(""))
@@ -165,7 +188,7 @@ namespace ArdaQBWS
             {
                 evLogTxt = evLogTxt + "Length of response received = " + response.Length + "\r\n";
 
-                ArrayList req = buildRequest();
+                ArrayList req = BuildBusinessRequestMessage();
                 int total = req.Count;
                 int count = Convert.ToInt32(Session["counter"]);
 
@@ -180,72 +203,74 @@ namespace ArdaQBWS
             evLogTxt = evLogTxt + "\r\n";
             evLogTxt = evLogTxt + "Return values: " + "\r\n";
             evLogTxt = evLogTxt + "int retVal= " + retVal.ToString() + "\r\n";
-            logEvent(evLogTxt);
+            LogEvent(evLogTxt);
             return retVal;
         }
 
-        private void logEvent(string logText)
-        {
+
+        /// <summary>
+        /// Build QBXML Business Request Message
+        /// </summary>
+        /// <returns></returns>
+        public ArrayList BuildBusinessRequestMessage()
+        { 
             try
             {
-                evLog.WriteEntry(logText);
-            }
-            catch { };
-            return;
-        }
 
-        public ArrayList buildRequest()
-        {
-            MongoServer mongo = MongoServer.Create();
-            mongo.Connect();
-            var db = mongo.GetDatabase("arda");
+                var connectionString = BuildMongoConnectionString();
 
-            string strRequestXML = "";
-            using (mongo.RequestStart(db))
-			{
-				var collection = db.GetCollection<BsonDocument>("contacts");
-                foreach (BsonDocument item in collection.FindAll())
+                var client = new MongoClient(connectionString);
+                var mongo = client.GetServer();
+                mongo.Connect(TimeSpan.FromSeconds(Settings.Default.dbhostconnecttimeout));
+
+                //var credentials = new MongoCredentials(Settings.Default.appusername, Settings.Default.appuserpassword);
+                var db = mongo.GetDatabase(Settings.Default.dbcatalogname
+                    //,credentials
+                    );
+                 
+                using (mongo.RequestStart(db))
                 {
-                    string json = item.ToJson();
-                    var companyName = item.GetValue("companyName");
-                    var firstName = item.GetValue("firstName");
-                    var lastName = item.GetValue("lastName");
-                    var email = item.GetValue("email");
-                    //step2: create the qbXML request
-                    XmlDocument inputXMLDoc = new XmlDocument();
-                    inputXMLDoc.AppendChild(inputXMLDoc.CreateXmlDeclaration("1.0", null, null));
-                    inputXMLDoc.AppendChild(inputXMLDoc.CreateProcessingInstruction("qbxml", "version=\"2.0\""));
-                    XmlElement qbXML = inputXMLDoc.CreateElement("QBXML");
-                    inputXMLDoc.AppendChild(qbXML);
-                    XmlElement qbXMLMsgsRq = inputXMLDoc.CreateElement("QBXMLMsgsRq");
-                    qbXML.AppendChild(qbXMLMsgsRq);
-                    qbXMLMsgsRq.SetAttribute("onError", "stopOnError");
-                    XmlElement custAddRq = inputXMLDoc.CreateElement("CustomerAddRq");
-                    qbXMLMsgsRq.AppendChild(custAddRq);
-                    custAddRq.SetAttribute("requestID", "2");
-                    XmlElement custAdd = inputXMLDoc.CreateElement("CustomerAdd");
-                    custAddRq.AppendChild(custAdd);
-                    custAdd.AppendChild(inputXMLDoc.CreateElement("Name")).InnerText = companyName.ToString();
-                    custAdd.AppendChild(inputXMLDoc.CreateElement("CompanyName")).InnerText = companyName.ToString();
-                    custAdd.AppendChild(inputXMLDoc.CreateElement("FirstName")).InnerText = firstName.ToString();
-                    custAdd.AppendChild(inputXMLDoc.CreateElement("LastName")).InnerText = lastName.ToString();
-                    custAdd.AppendChild(inputXMLDoc.CreateElement("Email")).InnerText = email.ToString();
+                    var collection = db.GetCollection<BsonDocument>("contacts");
 
-                    strRequestXML = inputXMLDoc.OuterXml;
-                    req.Add(strRequestXML);
-
-                    // Clean up
-                    strRequestXML = "";
-                    inputXMLDoc = null;
-                    qbXMLMsgsRq = null;
-                    custAdd = null;
+                    foreach (BsonDocument contact in collection.FindAll())
+                    {
+                        var xml = new XDocument(
+                          new XDeclaration("1.0", "UTF-8", null),
+                          new XElement("Orders",
+                              new XElement("QBXML",
+                                  new XElement("QBXMLMsgsRq",
+                                      new XAttribute("onError", "stopOnError"),
+                                      new XElement("CustomerAddRq",
+                                          new XAttribute("requestID", "2"), 
+                                                  new XElement("custAdd",
+                                                      new XElement("Name", contact.GetValue("companyName") ?? string.Empty),
+                                                      new XElement("FirstName", contact.GetValue("firstName") ?? string.Empty),
+                                                      new XElement("LastName", contact.GetValue("lastName") ?? string.Empty),
+                                                      new XElement("Email", contact.GetValue("email") ?? string.Empty))
+                                          )
+                                      )
+                                  )
+                              ) 
+                          ); 
+                        xml.AddFirst(new XProcessingInstruction("qbxml", "version=\"2.0\""));
+                         
+                        req.Add(SerializeXDoc(xml));
+                            
+                    } 
                 }
+
             }
+            catch (Exception exc)
+            {
+                //mongo connect fail
+                LogEvent(exc.StackTrace);
+            }
+
             return req;
         }
 
+         
 
-        [WebMethod]
         /// <summary>
         /// WebMethod - getLastError()
         /// Signature: public string getLastError(string ticket)
@@ -258,6 +283,7 @@ namespace ArdaQBWS
         /// Possible Values:
         /// Error message describing last web service error
         /// </summary>
+        [WebMethod]
         public string getLastError(string ticket)
         {
             string evLogTxt = "WebMethod: getLastError() has been called by QBWebconnector" + "\r\n\r\n";
@@ -278,12 +304,11 @@ namespace ArdaQBWS
             evLogTxt = evLogTxt + "\r\n";
             evLogTxt = evLogTxt + "Return values: " + "\r\n";
             evLogTxt = evLogTxt + "string retVal= " + retVal + "\r\n";
-            logEvent(evLogTxt);
+            LogEvent(evLogTxt);
             return retVal;
         }
 
 
-        [WebMethod]
         /// <summary>
         /// WebMethod - closeConnection()
         /// At the end of a successful update session, QBWebConnector will call this web method.
@@ -295,6 +320,7 @@ namespace ArdaQBWS
         /// OUT:
         /// string closeConnection result 
         /// </summary>
+        [WebMethod]
         public string closeConnection(string ticket)
         {
             string evLogTxt = "WebMethod: closeConnection() has been called by QBWebconnector" + "\r\n\r\n";
@@ -308,8 +334,52 @@ namespace ArdaQBWS
             evLogTxt = evLogTxt + "\r\n";
             evLogTxt = evLogTxt + "Return values: " + "\r\n";
             evLogTxt = evLogTxt + "string retVal= " + retVal + "\r\n";
-            logEvent(evLogTxt);
+            LogEvent(evLogTxt);
             return retVal;
         }
+
+
+
+
+        #region Utility section
+
+
+        private void LogEvent(string logText)
+        {
+            try
+            {
+                evLog.WriteEntry(logText);
+            }
+            catch { };
+            return;
+        }
+
+        private static string SerializeXDoc(XDocument xml)
+        {
+            var s_builder = new StringBuilder();
+            using (var writer = new StringWriter(s_builder))
+            {
+                xml.Save(writer);
+            }
+            return s_builder.ToString();
+        }
+
+        private static string BuildMongoConnectionString()
+        {
+            var dbhostport = string.Empty;
+            if (Settings.Default.dbhostport != string.Empty)
+            {
+                if (Settings.Default.dbhostaddress.IndexOf(":") < 0)
+                {
+                    dbhostport = string.Format(":{0}", Settings.Default.dbhostport ?? "27017");
+                }
+            }
+
+            var connectionString = string.Format("mongodb://{0}{1}", Settings.Default.dbhostaddress, dbhostport);
+            return connectionString;
+        }
+
+
+        #endregion
     }
 }
