@@ -70,7 +70,7 @@ namespace ArdaQBWS.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("$^&*sdfg%#$%gjygad%^&U")]
+        [global::System.Configuration.DefaultSettingValueAttribute("roG/PwGt2FHeh89PBg1lzA==")]
         public string appuserpassword {
             get {
                 return ((string)(this["appuserpassword"]));
@@ -79,7 +79,7 @@ namespace ArdaQBWS.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("password")]
+        [global::System.Configuration.DefaultSettingValueAttribute("SkRRu7y5JSzPJ6mcyUxi1Q==")]
         public string wsauthpassword {
             get {
                 return ((string)(this["wsauthpassword"]));

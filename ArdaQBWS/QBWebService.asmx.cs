@@ -20,9 +20,11 @@ using Newtonsoft.Json.Linq;
 using ArdaQBWS.Properties;
 using System.Xml.Linq;
 using System.Text;
+using ArdaQBWS.Utility;
 
 namespace ArdaQBWS
 {
+
     /// <summary>
     /// Summary description for QBWebService
     /// </summary>
@@ -35,10 +37,41 @@ namespace ArdaQBWS
     // [System.Web.Script.Services.ScriptService]
     public class QBWebService : System.Web.Services.WebService
     {
+
+
+
         #region GlobalVariables
+        private const string cryptokey = "TU567J6-7A6756FDJ6456-754AJLFH-L4556767-ASHDFI-742367";
         System.Diagnostics.EventLog evLog = new System.Diagnostics.EventLog();
+
+        #region SessionCounter
         public int count = 0;
-        public ArrayList req = new ArrayList();
+        /// <summary>
+        /// Gets or sets the session counter.
+        /// </summary>
+        /// <value>
+        /// The session counter.
+        /// </value>
+        private int SessionCounter
+        {
+            get
+            {
+                if (Session["counter"] == null)
+                {
+                    Session["counter"] = 0;
+                }
+
+                return (int)Session["counter"];
+            }
+
+            set
+            {
+                Session["counter"] = value;
+            }
+        }
+        #endregion
+
+        public List<XDocument> globalRequestMessageCollection = new List<XDocument>();
         #endregion
 
         [WebMethod]
@@ -49,8 +82,8 @@ namespace ArdaQBWS
             // Generate a random session ticket 
             authReturn[0] = System.Guid.NewGuid().ToString();
 
-          
-            if (strUserName.Trim().Equals("test") && strPassword.Trim().Equals(Settings.Default.wsauthpassword))
+
+            if (strUserName.Trim().Equals("test") && strPassword.Trim().Equals(CryptographyHelper.Decrypt(Settings.Default.wsauthpassword, cryptokey)))
             {
                 // An empty string for authReturn[1] means asking QBWebConnector 
                 // to connect to the company file that is currently openned in QB
@@ -89,11 +122,8 @@ namespace ArdaQBWS
         public string sendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName,
             string qbXMLCountry, int qbXMLMajorVers, int qbXMLMinorVers)
         {
-            if (Session["counter"] == null)
-            {
-                Session["counter"] = 0;
-            }
 
+            #region event Log message
             string evLogTxt = string.Format(
 @"WebMethod: sendRequestXML() has been called by QBWebconnector
 
@@ -113,30 +143,38 @@ int qbXMLMinorVers = {5}
              qbXMLMajorVers.ToString(),
              qbXMLMinorVers.ToString() 
              );
-             
-            ArrayList req = BuildBusinessRequestMessage();
-            string request = "";
-            int total = req.Count;
-            count = Convert.ToInt32(Session["counter"]);
+            #endregion
 
-            if (count < total)
+            var scopeOfMessages = BuildBusinessRequestMessage(); //.Where(doc=>doc.Element("elementName").Value.Equals("anElementValue")).ToList() ;
+
+            int total = scopeOfMessages.Count;
+
+            var currentIndex = SessionCounter;
+
+            string serializedResponse = string.Empty;
+            if (currentIndex < total)
             {
-                request = req[count].ToString();
-                evLogTxt = evLogTxt + "sending request no = " + (count + 1) + "\r\n";
-                Session["counter"] = ((int)Session["counter"]) + 1;
+                var nextIndex = currentIndex + 1;
+                serializedResponse = SerializeXDoc(scopeOfMessages[currentIndex]);
+                evLogTxt = evLogTxt + "sending request no = " + nextIndex + "\r\n";
+                SessionCounter = nextIndex;
             }
             else
             {
-                count = 0;
-                Session["counter"] = 0;
-                request = "";
+                SessionCounter = 0;
+                serializedResponse = string.Empty;
             }
             evLogTxt = evLogTxt + "\r\n";
             evLogTxt = evLogTxt + "Return values: " + "\r\n";
-            evLogTxt = evLogTxt + "string request = " + request + "\r\n";
+            evLogTxt = evLogTxt + "string request = " + serializedResponse + "\r\n";
+
+            //flush event log entry
             LogEvent(evLogTxt);
-            return request;
+
+            return serializedResponse;
         }
+
+
 
 
         /// <summary>
@@ -159,7 +197,8 @@ int qbXMLMinorVers = {5}
             EnableSession = true)]
         public int receiveResponseXML(string ticket, string response, string hresult, string message)
         {
- 
+
+            #region event Log message
             var evLogTxt = string.Format(
 @"WebMethod: receiveResponseXML() has been called by QBWebconnector
 
@@ -174,7 +213,8 @@ string message = {3}
              response,
              hresult,
              message 
-            ); 
+            );
+            #endregion
 
             int retVal = 0;
             if (!hresult.ToString().Equals(""))
@@ -188,17 +228,21 @@ string message = {3}
             {
                 evLogTxt = evLogTxt + "Length of response received = " + response.Length + "\r\n";
 
-                ArrayList req = BuildBusinessRequestMessage();
-                int total = req.Count;
-                int count = Convert.ToInt32(Session["counter"]);
+                var scopeOfMessages = BuildBusinessRequestMessage();
+                int total = scopeOfMessages.Count;
 
-                int percentage = (count * 100) / total;
-                if (percentage >= 100)
+                if (total > 0) //otherwise div/0 exception
                 {
-                    count = 0;
-                    Session["counter"] = 0;
+                    int count = SessionCounter;
+
+                    int percentage = (count * 100) / total;
+                    if (percentage >= 100)
+                    {
+                        count = 0;
+                        SessionCounter = 0;
+                    }
+                    retVal = percentage;
                 }
-                retVal = percentage;
             }
             evLogTxt = evLogTxt + "\r\n";
             evLogTxt = evLogTxt + "Return values: " + "\r\n";
@@ -212,21 +256,17 @@ string message = {3}
         /// Build QBXML Business Request Message
         /// </summary>
         /// <returns></returns>
-        public ArrayList BuildBusinessRequestMessage()
+        public List<XDocument> BuildBusinessRequestMessage()
         { 
             try
             {
-
-                var connectionString = BuildMongoConnectionString();
+                var connectionString = BuildMongoConnectionString(Settings.Default.dbcatalogname);
 
                 var client = new MongoClient(connectionString);
                 var mongo = client.GetServer();
                 mongo.Connect(TimeSpan.FromSeconds(Settings.Default.dbhostconnecttimeout));
-
-                //var credentials = new MongoCredentials(Settings.Default.appusername, Settings.Default.appuserpassword);
-                var db = mongo.GetDatabase(Settings.Default.dbcatalogname
-                    //,credentials
-                    );
+                 
+                var db = mongo.GetDatabase(Settings.Default.dbcatalogname);
                  
                 using (mongo.RequestStart(db))
                 {
@@ -253,8 +293,8 @@ string message = {3}
                               ) 
                           ); 
                         xml.AddFirst(new XProcessingInstruction("qbxml", "version=\"2.0\""));
-                         
-                        req.Add(SerializeXDoc(xml));
+                        //var xml_sttr = SerializeXDoc(xml);
+                        globalRequestMessageCollection.Add(xml);
                             
                     } 
                 }
@@ -266,7 +306,7 @@ string message = {3}
                 LogEvent(exc.StackTrace);
             }
 
-            return req;
+            return globalRequestMessageCollection;
         }
 
          
@@ -337,13 +377,13 @@ string message = {3}
             LogEvent(evLogTxt);
             return retVal;
         }
-
-
-
-
+         
         #region Utility section
-
-
+         
+        /// <summary>
+        /// Logs the event.
+        /// </summary>
+        /// <param name="logText">The log text.</param>
         private void LogEvent(string logText)
         {
             try
@@ -354,6 +394,11 @@ string message = {3}
             return;
         }
 
+        /// <summary>
+        /// Serializes the x document.
+        /// </summary>
+        /// <param name="xml">The XML.</param>
+        /// <returns></returns>
         private static string SerializeXDoc(XDocument xml)
         {
             var s_builder = new StringBuilder();
@@ -364,8 +409,34 @@ string message = {3}
             return s_builder.ToString();
         }
 
+
+        /// <summary>
+        /// Builds the mongo connection string.
+        /// </summary>
+        /// <returns></returns>
         private static string BuildMongoConnectionString()
         {
+            return BuildMongoConnectionString(string.Empty);
+        }
+
+        /// <summary>
+        /// Builds the mongo connection string.
+        /// </summary>
+        /// <param name="catalogName">Name of the catalog.</param>
+        /// <returns></returns>
+        private static string BuildMongoConnectionString(string catalogName)
+        {
+
+
+            //Credentials
+            var appcredentials = string.Empty;
+            if (!String.IsNullOrEmpty(Settings.Default.appusername) && !String.IsNullOrEmpty(Settings.Default.appuserpassword))
+            {
+                appcredentials = string.Format("{0}:{1}", Settings.Default.appusername,
+                CryptographyHelper.Decrypt(Settings.Default.appuserpassword , cryptokey));
+            }
+
+            //Port
             var dbhostport = string.Empty;
             if (Settings.Default.dbhostport != string.Empty)
             {
@@ -375,7 +446,18 @@ string message = {3}
                 }
             }
 
-            var connectionString = string.Format("mongodb://{0}{1}", Settings.Default.dbhostaddress, dbhostport);
+            //host server
+            var connectionString = string.Format("mongodb://{0}@{1}{2}",
+                appcredentials,
+                Settings.Default.dbhostaddress, 
+                dbhostport );
+
+            //database name
+            if (!string.IsNullOrEmpty(catalogName))
+            {
+                connectionString += "/" + catalogName;
+            }
+
             return connectionString;
         }
 

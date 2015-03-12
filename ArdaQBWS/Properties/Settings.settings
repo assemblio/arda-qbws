@@ -18,10 +18,10 @@
       <Value Profile="(Default)">u_appman</Value>
     </Setting>
     <Setting Name="appuserpassword" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">$^&amp;*sdfg%#$%gjygad%^&amp;U</Value>
+      <Value Profile="(Default)">roG/PwGt2FHeh89PBg1lzA==</Value>
     </Setting>
     <Setting Name="wsauthpassword" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">password</Value>
+      <Value Profile="(Default)">SkRRu7y5JSzPJ6mcyUxi1Q==</Value>
     </Setting>
   </Settings>
 </SettingsFile>
