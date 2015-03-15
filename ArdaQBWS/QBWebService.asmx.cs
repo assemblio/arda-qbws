@@ -15,8 +15,6 @@ using System.Collections;
 using System.Xml;
 using MongoDB.Bson;
 using MongoDB.Driver;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using ArdaQBWS.Properties;
 using System.Xml.Linq;
 using System.Text;
@@ -29,7 +27,7 @@ namespace ArdaQBWS
     /// Summary description for QBWebService
     /// </summary>
     [WebService(
-         Namespace = "http://developer.assemblio.com/",
+         Namespace = "http://developer.intuit.com/",
          Name = "WCWebService",
          Description = "Quickbooks WebService in ASP.NET " +
                 "QuickBooks WebConnector")]
@@ -141,7 +139,7 @@ int qbXMLMinorVers = {5}
              strCompanyFileName,
              qbXMLCountry,
              qbXMLMajorVers.ToString(),
-             qbXMLMinorVers.ToString() 
+             qbXMLMinorVers.ToString()
              );
             #endregion
 
@@ -193,7 +191,7 @@ int qbXMLMinorVers = {5}
         /// 100 = Done. no more request to send
         /// Less than zero  = Custom Error codes
         /// </summary>
-        [WebMethod(Description = "This web method facilitates web service to receive response XML from QuickBooks via QBWebConnector", 
+        [WebMethod(Description = "This web method facilitates web service to receive response XML from QuickBooks via QBWebConnector",
             EnableSession = true)]
         public int receiveResponseXML(string ticket, string response, string hresult, string message)
         {
@@ -212,7 +210,7 @@ string message = {3}
              ticket,
              response,
              hresult,
-             message 
+             message
             );
             #endregion
 
@@ -257,7 +255,7 @@ string message = {3}
         /// </summary>
         /// <returns></returns>
         public List<XDocument> BuildBusinessRequestMessage()
-        { 
+        {
             try
             {
                 var connectionString = BuildMongoConnectionString(Settings.Default.dbcatalogname);
@@ -265,9 +263,9 @@ string message = {3}
                 var client = new MongoClient(connectionString);
                 var mongo = client.GetServer();
                 mongo.Connect(TimeSpan.FromSeconds(Settings.Default.dbhostconnecttimeout));
-                 
+
                 var db = mongo.GetDatabase(Settings.Default.dbcatalogname);
-                 
+
                 using (mongo.RequestStart(db))
                 {
                     var collection = db.GetCollection<BsonDocument>("contacts");
@@ -276,27 +274,25 @@ string message = {3}
                     {
                         var xml = new XDocument(
                           new XDeclaration("1.0", "UTF-8", null),
-                          new XElement("Orders",
                               new XElement("QBXML",
                                   new XElement("QBXMLMsgsRq",
                                       new XAttribute("onError", "stopOnError"),
                                       new XElement("CustomerAddRq",
-                                          new XAttribute("requestID", "2"), 
-                                                  new XElement("custAdd",
+                                          new XAttribute("requestID", "2"),
+                                                  new XElement("CustomerAdd",
                                                       new XElement("Name", contact.GetValue("companyName") ?? string.Empty),
+                                                      new XElement("CompanyName", contact.GetValue("companyName") ?? string.Empty),
                                                       new XElement("FirstName", contact.GetValue("firstName") ?? string.Empty),
                                                       new XElement("LastName", contact.GetValue("lastName") ?? string.Empty),
                                                       new XElement("Email", contact.GetValue("email") ?? string.Empty))
                                           )
                                       )
                                   )
-                              ) 
-                          ); 
+                        );
                         xml.AddFirst(new XProcessingInstruction("qbxml", "version=\"2.0\""));
                         //var xml_sttr = SerializeXDoc(xml);
                         globalRequestMessageCollection.Add(xml);
-                            
-                    } 
+                    }
                 }
 
             }
@@ -309,7 +305,7 @@ string message = {3}
             return globalRequestMessageCollection;
         }
 
-         
+
 
         /// <summary>
         /// WebMethod - getLastError()
@@ -377,9 +373,9 @@ string message = {3}
             LogEvent(evLogTxt);
             return retVal;
         }
-         
+
         #region Utility section
-         
+
         /// <summary>
         /// Logs the event.
         /// </summary>
@@ -426,14 +422,12 @@ string message = {3}
         /// <returns></returns>
         private static string BuildMongoConnectionString(string catalogName)
         {
-
-
             //Credentials
             var appcredentials = string.Empty;
             if (!String.IsNullOrEmpty(Settings.Default.appusername) && !String.IsNullOrEmpty(Settings.Default.appuserpassword))
             {
                 appcredentials = string.Format("{0}:{1}", Settings.Default.appusername,
-                CryptographyHelper.Decrypt(Settings.Default.appuserpassword , cryptokey));
+                CryptographyHelper.Decrypt(Settings.Default.appuserpassword, cryptokey));
             }
 
             //Port
@@ -449,8 +443,8 @@ string message = {3}
             //host server
             var connectionString = string.Format("mongodb://{0}@{1}{2}",
                 appcredentials,
-                Settings.Default.dbhostaddress, 
-                dbhostport );
+                Settings.Default.dbhostaddress,
+                dbhostport);
 
             //database name
             if (!string.IsNullOrEmpty(catalogName))
@@ -460,8 +454,6 @@ string message = {3}
 
             return connectionString;
         }
-
-
         #endregion
     }
 }
