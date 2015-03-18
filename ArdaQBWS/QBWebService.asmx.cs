@@ -426,7 +426,7 @@ string message = {3}
             var appcredentials = string.Empty;
             if (!String.IsNullOrEmpty(Settings.Default.appusername) && !String.IsNullOrEmpty(Settings.Default.appuserpassword))
             {
-                appcredentials = string.Format("{0}:{1}", Settings.Default.appusername,
+                appcredentials = string.Format("{0}:{1}@", Settings.Default.appusername,
                 CryptographyHelper.Decrypt(Settings.Default.appuserpassword, cryptokey));
             }
 
@@ -441,7 +441,7 @@ string message = {3}
             }
 
             //host server
-            var connectionString = string.Format("mongodb://{0}@{1}{2}",
+            var connectionString = string.Format("mongodb://{0}{1}{2}",
                 appcredentials,
                 Settings.Default.dbhostaddress,
                 dbhostport);
